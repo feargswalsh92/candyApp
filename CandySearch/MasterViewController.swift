@@ -24,7 +24,7 @@ import UIKit
 import Foundation
 
 
-class MasterViewController: UITableViewController{
+class MasterViewController: UITableViewController, UISearchBarDelegate{
   
   // MARK: - Properties
   var detailViewController: DetailViewController? = nil
@@ -50,16 +50,20 @@ class MasterViewController: UITableViewController{
         ]
     
   
-
-    if let splitViewController = splitViewController {
+       if let splitViewController = splitViewController {
       let controllers = splitViewController.viewControllers
       detailViewController = (controllers[controllers.count - 1] as! UINavigationController).topViewController as? DetailViewController
         
     //MARK searchController parameters
-       // searchController.searchResultsUpdater = self
+        searchController.searchResultsUpdater = self
         searchController.dimsBackgroundDuringPresentation = false
         definesPresentationContext = true
         tableView.tableHeaderView = searchController.searchBar
+        
+        
+        searchController.searchBar.scopeButtonTitles = ["All", "Chocolate", "Hard", "Other"]
+        searchController.searchBar.delegate = self
+
         
     
     }
@@ -79,13 +83,15 @@ class MasterViewController: UITableViewController{
     return 1
   }
     
-    func filterContentForSearchText(searchText: NSString,scope: NSString = "All"){
+    func filterContentForSearchText(searchText: String,scope: String = "All") {
         filterCandies = candies.filter { candy in
-            return candy.name.lowercased().contains(searchText.lowercased)
+            let categoryMatch = (scope == "All") || (candy.category == scope)
+            return categoryMatch && candy.name.lowercased().contains(searchText.lowercased())
         }
         
         tableView.reloadData()
     }
+
   
   override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
     if searchController.isActive && searchController.searchBar.text != "" {
@@ -114,7 +120,12 @@ class MasterViewController: UITableViewController{
   override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
     if segue.identifier == "showDetail" {
       if let indexPath = tableView.indexPathForSelectedRow {
-        let candy = candies[indexPath.row]
+        let candy:Candy
+        if searchController.isActive && searchController.searchBar.text != "" {
+            candy = filterCandies[indexPath.row]
+        } else {
+            candy = candies[indexPath.row]
+        }
         let controller = (segue.destination as! UINavigationController).topViewController as! DetailViewController
         controller.detailCandy = candy
         controller.navigationItem.leftBarButtonItem = splitViewController?.displayModeButtonItem
@@ -129,7 +140,7 @@ extension MasterViewController: UISearchResultsUpdating {
     @available(iOS 8.0, *)
     public func updateSearchResults(for searchController: UISearchController) {
         if searchController.searchBar.text != nil {
-            filterContentForSearchText(searchText: searchController.searchBar.text! as NSString)
+            filterContentForSearchText(searchText: (searchController.searchBar.text! as NSString) as String)
             tableView.reloadData()
         }
     }
@@ -137,8 +148,18 @@ extension MasterViewController: UISearchResultsUpdating {
     //@available(iOS 8.0, *)
     
     func updateSearchResultsForSearchController(searchController: UISearchController) {
-        filterContentForSearchText(searchText: searchController.searchBar.text! as NSString)
+        let searchBar = searchController.searchBar
+        let scope = searchBar.scopeButtonTitles![searchBar.selectedScopeButtonIndex]
+        filterContentForSearchText(searchText: searchController.searchBar.text!, scope: scope)        //filterContentForSearchText(searchController.searchBar.text! as NSString) as String)
     }
-  }
+    
+    func searchBar(searchBar: UISearchBar, selectedScopeButtonIndexDidChange selectedScope: Int){
+        filterContentForSearchText(searchText: searchBar.text!, scope: searchBar.scopeButtonTitles![selectedScope])
+    }
+    
+    
+}
+
+
 
 
